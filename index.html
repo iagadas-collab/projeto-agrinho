@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Flappy Bird</title>
+  <style>
+    body {
+      margin: 0;
+      background: linear-gradient(to bottom, #6bbd7a 0%, #2f7d32 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: Arial, sans-serif;
+    }
+
+    canvas {
+      background: #70c5ce;
+      border: 3px solid #000;
+    }
+
+    h1 {
+      position: absolute;
+      top: 10px;
+      color: white;
+      text-shadow: 2px 2px #000;
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="game" width="400" height="600"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+const GRAVITY = 0.5;
+const JUMP = -10;
+let score = 0;
+let assetsReady = false;
+
+const birdImage = new Image();
+birdImage.src = 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+  <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+    <rect width="64" height="64" fill="none"/>
+    <ellipse cx="32" cy="32" rx="24" ry="16" fill="#ffd54a"/>
+    <ellipse cx="25" cy="30" rx="8" ry="5" fill="#fff8c2"/>
+    <path d="M48 32 L62 25 L60 35 Z" fill="#ff8a00"/>
+    <circle cx="42" cy="28" r="3" fill="#1f1f1f"/>
+    <path d="M20 18 Q28 8 38 18" stroke="#2e7d32" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <path d="M18 46 Q26 54 36 46" stroke="#2e7d32" stroke-width="4" fill="none" stroke-linecap="round"/>
+  </svg>
+`);
+
+const pipeImage = new Image();
+pipeImage.src = 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+  <svg xmlns="http://www.w3.org/2000/svg" width="80" height="160" viewBox="0 0 80 160">
+    <rect width="80" height="160" fill="none"/>
+    <rect x="8" y="0" width="64" height="30" rx="4" fill="#2ecc71"/>
+    <rect x="4" y="30" width="72" height="100" rx="6" fill="#2ecc71"/>
+    <rect x="0" y="126" width="80" height="34" rx="6" fill="#1b8f49"/>
+    <rect x="10" y="42" width="10" height="10" fill="#a6ffb6"/>
+    <rect x="30" y="58" width="10" height="10" fill="#a6ffb6"/>
+    <rect x="50" y="74" width="10" height="10" fill="#a6ffb6"/>
+    <rect x="18" y="90" width="10" height="10" fill="#a6ffb6"/>
+    <rect x="42" y="106" width="10" height="10" fill="#a6ffb6"/>
+    <rect x="20" y="0" width="10" height="10" fill="#7cf0a1"/>
+    <rect x="40" y="0" width="10" height="10" fill="#7cf0a1"/>
+  </svg>
+`);
+
+// Pássaro
+let bird = {
+  x: 50,
+  y: 300,
+  width: 30,
+  height: 30,
+  velocity: 0
+};
+
+// Canos
+let pipes = [];
+const PIPE_WIDTH = 50;
+const PIPE_GAP = 150;
+const PIPE_INTERVAL = 120; // frames
+
+// Criar novos canos
+function createPipe() {
+  const topHeight = Math.floor(Math.random() * (canvas.height - PIPE_GAP - 100)) + 50;
+  const bottomHeight = canvas.height - PIPE_GAP - topHeight;
+  pipes.push({
+    x: canvas.width,
+    topHeight: topHeight,
+    bottomHeight: bottomHeight
+  });
+}
+
+// Atualizar posição do pássaro e canos
+let frame = 0;
+function update() {
+  bird.velocity += GRAVITY;
+  bird.y += bird.velocity;
+
+  if (frame % PIPE_INTERVAL === 0) {
+    createPipe();
+  }
+
+  for (let i = 0; i < pipes.length; i++) {
+    pipes[i].x -= 2;
+
+    // Verificar colisão
+    if (
+      bird.x + bird.width > pipes[i].x &&
+      bird.x < pipes[i].x + PIPE_WIDTH &&
+      (bird.y < pipes[i].topHeight || bird.y + bird.height > canvas.height - pipes[i].bottomHeight)
+    ) {
+      gameOver();
+    }
+
+    // Pontuação
+    if (pipes[i].x + PIPE_WIDTH === bird.x) {
+      score++;
+    }
+  }
+
+  // Remover canos que saíram da tela
+  pipes = pipes.filter(pipe => pipe.x + PIPE_WIDTH > 0);
+}
+
+function drawForestBackground() {
+  const sky = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  sky.addColorStop(0, "#8dd8ff");
+  sky.addColorStop(0.45, "#7fd492");
+  sky.addColorStop(1, "#2b6b31");
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = "#4c8c4a";
+  for (let i = 0; i < 7; i++) {
+    const x = 20 + i * 55;
+    ctx.fillRect(x, 420, 18, 160);
+    ctx.fillStyle = "#2e7d32";
+    ctx.beginPath();
+    ctx.moveTo(x - 30, 420);
+    ctx.lineTo(x + 9, 330);
+    ctx.lineTo(x + 48, 420);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = "#4c8c4a";
+  }
+
+  ctx.fillStyle = "#5a9c55";
+  ctx.beginPath();
+  ctx.moveTo(0, 450);
+  ctx.lineTo(120, 380);
+  ctx.lineTo(240, 430);
+  ctx.lineTo(360, 390);
+  ctx.lineTo(400, 450);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = "#3d6b2d";
+  ctx.fillRect(0, 480, canvas.width, canvas.height - 480);
+}
+
+// Desenhar tudo
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawForestBackground();
+
+  // Pássaro
+  ctx.drawImage(birdImage, bird.x, bird.y, bird.width, bird.height);
+
+  // Canos
+  for (let pipe of pipes) {
+    ctx.save();
+    ctx.translate(pipe.x, 0);
+    ctx.scale(1, -1);
+    ctx.drawImage(pipeImage, 0, -pipe.topHeight, PIPE_WIDTH, pipe.topHeight);
+    ctx.restore();
+
+    ctx.drawImage(pipeImage, pipe.x, canvas.height - pipe.bottomHeight, PIPE_WIDTH, pipe.bottomHeight);
+  }
+
+  // Pontuação
+  ctx.fillStyle = "white";
+  ctx.font = "24px Arial";
+  ctx.fillText("Score: " + score, 10, 30);
+}
+
+// Controle do pássaro
+document.addEventListener("keydown", () => {
+  bird.velocity = JUMP;
+});
+
+// Game over
+function gameOver() {
+  alert("Game Over! Pontuação: " + score);
+  // Reiniciar
+  bird.y = 300;
+  bird.velocity = 0;
+  pipes = [];
+  score = 0;
+  frame = 0;
+}
+
+// Loop do jogo
+function loop() {
+  if (!assetsReady) return;
+  frame++;
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+function startGame() {
+  if (assetsReady) return;
+  assetsReady = true;
+  loop();
+}
+
+birdImage.onload = () => {
+  if (pipeImage.complete) startGame();
+};
+
+pipeImage.onload = () => {
+  if (birdImage.complete) startGame();
+};
+
+if (birdImage.complete && pipeImage.complete) {
+  startGame();
+}
+</script>
+
+</body>
+</html>
